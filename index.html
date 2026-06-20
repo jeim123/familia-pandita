@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Dinero Familiar</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { background-color: #f0f4f8; padding: 20px; max-width: 980px; margin: 0 auto; }
+        h1 { text-align: center; color: #2d3748; margin-bottom: 20px; font-size: 22px; }
+        h2 { color: #2d3748; margin: 18px 0 12px; font-size: 17px; }
+
+        /* ESTILO DE PESTAÑAS COMO EN EL NAVEGADOR */
+        .contenedor-pestanas { margin-top: 20px; }
+        .botones-pestanas { 
+            display: flex; 
+            gap: 0;
+            background-color: #f0f2f5;
+            border-bottom: 1px solid #e2e8f0; 
+            margin-bottom: 0;
+            flex-wrap: wrap;
+            padding-left: 8px;
+            padding-top: 4px;
+        }
+        .btn-pestana { 
+            padding: 8px 16px; 
+            border: 1px solid transparent;
+            border-bottom: 1px solid #e2e8f0;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            background: transparent; 
+            cursor: pointer; 
+            font-size: 14px; 
+            color: #4a5568; 
+            transition: all 0.2s;
+            margin-bottom: -1px;
+            margin-right: 4px;
+        }
+        .btn-pestana.activa { 
+            background: #ffffff; 
+            border-color: #e2e8f0;
+            border-bottom-color: #ffffff;
+            color: #2b6cb0;
+            font-weight: 500;
+        }
+        .btn-pestana:hover:not(.activa) { 
+            background-color: #e7eaed;
+        }
+        .contenido-pestana { 
+            display: none; 
+            padding: 25px; 
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-top-left-radius: 0;
+            border-top-right-radius: 8px;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            animation: aparecer 0.3s ease;
+        }
+        .contenido-pestana.activa { display: block; }
+        @keyframes aparecer { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Estilos generales */
+        .resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .resumen-sub { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 20px; background: #f8fafc; padding: 12px; border-radius: 8px; }
+        .tarjeta { background: white; padding: 12px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); text-align: center; border: 1px solid #e2e8f0; }
+        .tarjeta h3 { font-size: 13px; color: #4a5568; margin-bottom: 6px; }
+        .tarjeta .valor { font-size: 18px; font-weight: bold; color: #2b6cb0; }
+
+        .formulario { background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 10px; }
+        input, select { padding: 9px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; width: 100%; }
+        button { background: #2b6cb0; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 15px; cursor: pointer; width: 100%; margin-top: 8px; }
+        button:hover { background: #2c5282; }
+
+        .btn-editar { background: #ed8936; padding: 5px 8px; font-size: 12px; width: auto; margin: 0 2px; }
+        .btn-eliminar { background: #e53e3e; padding: 5px 8px; font-size: 12px; width: auto; margin: 0 2px; }
+        .btn-guardar { background: #38a169; }
+        .btn-salir { background: #c53030; max-width: 100px; margin-bottom: 15px; }
+        .btn-cerrar-mes { 
+            background: #805ad5; 
+            max-width: 280px; 
+            margin: 10px 0; 
+            font-weight: 500;
+        }
+        .btn-cerrar-mes:hover { background: #6b46c1; }
+
+        table { width: 100%; background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); border-collapse: collapse; overflow: hidden; font-size: 13px; border: 1px solid #e2e8f0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #edf2f7; }
+        th { background: #f7fafc; font-weight: bold; color: #2d3748; }
+        .ingreso { color: #2f855a; font-weight: bold; }
+        .gasto { color: #c53030; font-weight: bold; }
+        .edicion { background: #fef5e7; padding: 12px; border-radius: 6px; margin-bottom: 15px; display: none; border: 1px solid #fbd38d; }
+
+        .login { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 3px 8px rgba(0,0,0,0.1); max-width: 380px; margin: 50px auto; text-align: center; border: 1px solid #e2e8f0; }
+        .login input { margin: 10px 0; padding: 12px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<!-- Pantalla de Acceso -->
+<div id="pantallaLogin" style="display: block;">
+    <div class="login">
+        <h2>🔐 Acceso</h2>
+        <input type="password" id="claveAcceso" placeholder="Ingresa tu contraseña">
+        <button onclick="iniciarSesion()">Entrar</button>
+        <p style="margin-top:15px; font-size:13px; color:#666;">
+            Claves: <br> José: 5678 | Caro: 9101
+        </p>
+    </div>
+</div>
+
+<!-- Pantalla Principal con Pestañas -->
+<div id="pantallaPrincipal" style="display: none;">
+    <button class="btn-salir" onclick="cerrarSesion()">Salir</button>
+    <h1>💰 Control de Dinero Familiar</h1>
+
+    <!-- Botones de Pestañas -->
+    <div class="contenedor-pestanas">
+        <div class="botones-pestanas" id="menuPestanas">
+            <button class="btn-pestana activa" onclick="cambiarPestana('resumen')">📊 Resumen General</button>
+            <button class="btn-pestana" onclick="cambiarPestana('registros')">📝 Registrar / Ver Movimientos</button>
+            <button class="btn-pestana" onclick="cambiarPestana('ocioJose')" id="btnOcioJose">🎮 Mi Ocio</button>
+            <button class="btn-pestana" onclick="cambiarPestana('ocioCaro')" id="btnOcioCaro">💃 Mi Ocio</button>
+        </div>
+
+        <!-- Pestaña 1: Resumen -->
+        <div id="pestana-resumen" class="contenido-pestana activa">
+            <h2>Saldo de Fondos</h2>
+            <div class="resumen">
+                <div class="tarjeta"><h3>🏠 Casa</h3><div class="valor" id="saldoCasa">0 Bs</div></div>
+                <div class="tarjeta"><h3>🤝 Ahorro Conjunto</h3><div class="valor" id="saldoAhorro">0 Bs</div></div>
+                <div class="tarjeta"><h3>💍 Ahorro Boda</h3><div class="valor" id="saldoBoda">0 Bs</div></div>
+                <div class="tarjeta"><h3>👶 Ahorro Dylan</h3><div class="valor" id="saldoDylan">0 Bs</div></div>
+                <div class="tarjeta"><h3>🎯 Ocio Común</h3><div class="valor" id="saldoComun">0 Bs</div></div>
+            </div>
+
+            <button class="btn-cerrar-mes" onclick="cerrarMesCasa()">🔒 Cerrar mes: limpiar lista y reiniciar Casa</button>
+
+            <h2>Saldo por Subcategoría - Ocio Común</h2>
+            <div class="resumen-sub" id="saldoSubcategorias"></div>
+        </div>
+
+        <!-- Pestaña 2: Registrar y Ver Movimientos -->
+        <div id="pestana-registros" class="contenido-pestana">
+            <h2>Agregar Nuevo Movimiento</h2>
+            <div class="formulario">
+                <div class="fila">
+                    <input type="date" id="fecha" required>
+                    <input type="text" id="concepto" placeholder="Concepto (solo en gastos)">
+                </div>
+                <div class="fila">
+                    <select id="fondo" required onchange="actualizarSubcategorias()">
+                        <option value="">Seleccionar fondo</option>
+                        <option value="casa">🏠 Casa</option>
+                        <option value="ahorro">🤝 Ahorro en Conjunto</option>
+                        <option value="boda">💍 Ahorro Boda</option>
+                        <option value="dylan">👶 Ahorro Dylan</option>
+                        <option value="comun">🎯 Ocio Común</option>
+                    </select>
+                    <select id="subcategoria">
+                        <option value="">Elige primero el fondo</option>
+                    </select>
+                </div>
+                <div class="fila">
+                    <select id="tipo" required onchange="cambiarRequerimientoConcepto()">
+                        <option value="ingreso">Ingreso (+)</option>
+                        <option value="gasto">Gasto (-)</option>
+                    </select>
+                    <input type="number" id="monto" step="0.01" min="0.01" placeholder="Monto en Bs" required>
+                </div>
+                <button onclick="agregarMovimiento()">Guardar Movimiento</button>
+            </div>
+
+            <!-- Formulario de Edición -->
+            <div id="formEditar" class="edicion">
+                <h3>✏️ Editar Movimiento</h3>
+                <input type="hidden" id="indiceEditar">
+                <div class="fila">
+                    <input type="date" id="fechaEditar" required>
+                    <input type="text" id="conceptoEditar" placeholder="Concepto (solo en gastos)">
+                </div>
+                <div class="fila">
+                    <select id="fondoEditar" required onchange="actualizarSubcategoriasEditar()">
+                        <option value="">Seleccionar fondo</option>
+                        <option value="casa">🏠 Casa</option>
+                        <option value="ahorro">🤝 Ahorro en Conjunto</option>
+                        <option value="boda">💍 Ahorro Boda</option>
+                        <option value="dylan">👶 Ahorro Dylan</option>
+                        <option value="comun">🎯 Ocio Común</option>
+                    </select>
+                    <select id="subcategoriaEditar"></select>
+                </div>
+                <div class="fila">
+                    <select id="tipoEditar" required>
+                        <option value="ingreso">Ingreso (+)</option>
+                        <option value="gasto">Gasto (-)</option>
+                    </select>
+                    <input type="number" id="montoEditar" step="0.01" min="0.01" required>
+                </div>
+                <button class="btn-guardar" onclick="guardarEdicion()">Guardar Cambios</button>
+                <button onclick="cerrarEdicion()">Cancelar</button>
+            </div>
+
+            <h2>Lista de Movimientos</h2>
+            <table>
+                <thead><tr><th>Fecha</th><th>Concepto</th><th>Fondo</th><th>Subcategoría</th><th>Monto</th><th>Acciones</th></tr></thead>
+                <tbody id="listaMovimientos"></tbody>
+            </table>
+        </div>
+
+        <!-- Pestaña 3: Ocio José -->
+        <div id="pestana-ocioJose" class="contenido-pestana">
+            <h2>Saldo Disponible</h2>
+            <div class="resumen">
+                <div class="tarjeta"><h3>🎮 Mi Ocio</h3><div class="valor" id="saldoJose">0 Bs</div></div>
+            </div>
+
+            <h2>Agregar Movimiento</h2>
+            <div class="formulario">
+                <div class="fila">
+                    <input type="date" id="fechaJose" required>
+                    <input type="text" id="conceptoJose" placeholder="Concepto (solo en gastos)">
+                </div>
+                <div class="fila">
+                    <select id="tipoJose" required>
+                        <option value="ingreso">Ingreso (+)</option>
+                        <option value="gasto">Gasto (-)</option>
+                    </select>
+                    <input type="number" id="montoJose" step="0.01" min="0.01" placeholder="Monto en Bs" required>
+                </div>
+                <button onclick="agregarJose()">Guardar</button>
+            </div>
+
+            <h2>Mis Movimientos</h2>
+            <table>
+                <thead><tr><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Acciones</th></tr></thead>
+                <tbody id="listaJose"></tbody>
+            </table>
+        </div>
+
+        <!-- Pestaña 4: Ocio Caro -->
+        <div id="pestana-ocioCaro" class="contenido-pestana">
+            <h2>Saldo Disponible</h2>
+            <div class="resumen">
+                <div class="tarjeta"><h3>💃 Mi Ocio</h3><div class="valor" id="saldoCaro">0 Bs</div></div>
+            </div>
+
+            <h2>Agregar Movimiento</h2>
+            <div class="formulario">
+                <div class="fila">
+                    <input type="date" id="fechaCaro" required>
+                    <input type="text" id="conceptoCaro" placeholder="Concepto (solo en gastos)">
+                </div>
+                <div class="fila">
+                    <select id="tipoCaro" required>
+                        <option value="ingreso">Ingreso (+)</option>
+                        <option value="gasto">Gasto (-)</option>
+                    </select>
+                    <input type="number" id="montoCaro" step="0.01" min="0.01" placeholder="Monto en Bs" required>
+                </div>
+                <button onclick="agregarCaro()">Guardar</button>
+            </div>
+
+            <h2>Mis Movimientos</h2>
+            <table>
+                <thead><tr><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Acciones</th></tr></thead>
+                <tbody id="listaCaro"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// Categorías
+const subcategorias = {
+    casa: ["Servicios", "Comida básica", "Impuestos", "Salud", "Otros"],
+    ahorro: ["Emergencias", "Metas a futuro"],
+    boda: ["Emergencia", "Otro", "Reponer"],
+    dylan: ["Educación", "Salud", "Juguetes", "Reserva"],
+    comun: ["Cumpleaños", "Viajes", "Regalos", "Ropa", "Personal", "Comer afuera", "Mantenimiento"]
+};
+
+// Claves de acceso
+const claves = {
+    "5678": "jose",
+    "9101": "caro"
+};
+
+let movimientos = JSON.parse(localStorage.getItem("movimientos")) || [];
+let saldoJose = parseFloat(localStorage.getItem("saldoJose")) || 0;
+let movJose = JSON.parse(localStorage.getItem("movJose")) || [];
+let saldoCaro = parseFloat(localStorage.getItem("saldoCaro")) || 0;
+let movCaro = JSON.parse(localStorage.getItem("movCaro")) || [];
+
+// ✅ FUNCIÓN NUEVA: Cerrar mes, limpiar lista PERO conservar saldos acumulados
+function cerrarMesCasa() {
+    if (!confirm("⚠️ ¿Seguro quieres cerrar el mes?\n✅ Casa quedará en 0\n✅ Se guardarán los montos ahorrados\n❌ Se borrará todo el historial de movimientos\n¿Continuar?")) return;
+
+    // 1. Calcular saldos finales de este mes
+    let saldos = { casa:0, ahorro:0, boda:0, dylan:0, comun:0 };
+    movimientos.forEach(m => {
+        const val = m.tipo === "ingreso" ? m.monto : -m.monto;
+        saldos[m.fondo] += val;
+    });
+
+    // 2. Empezar lista nueva SOLO con los saldos iniciales del mes nuevo
+    movimientos = [];
+
+    // Dejar Casa en 0
+    movimientos.push({
+        fecha: new Date().toISOString().split('T')[0],
+        concepto: "🔄 INICIO MES - CASA REINICIADA",
+        fondo: "casa",
+        subcat: "Otros",
+        tipo: "ingreso",
+        monto: 0
+    });
+
+    // Guardar como saldo inicial lo que ya se había reunido
+    if (saldos.ahorro !== 0) movimientos.push({fecha: new Date().toISOString().split('T')[0], concepto: "🔄 SALDO INICIAL - AHORRO", fondo:"ahorro", subcat:"Metas a futuro", tipo:"ingreso", monto: saldos.ahorro});
+    if (saldos.boda !== 0) movimientos.push({fecha: new Date().toISOString().split('T')[0], concepto: "🔄 SALDO INICIAL - BODA", fondo:"boda", subcat:"Otro", tipo:"ingreso", monto: saldos.boda});
+    if (saldos.dylan !== 0) movimientos.push({fecha: new Date().toISOString().split('T')[0], concepto: "🔄 SALDO INICIAL - DYLAN", fondo:"dylan", subcat:"Reserva", tipo:"ingreso", monto: saldos.dylan});
+    if (saldos.comun !== 0) movimientos.push({fecha: new Date().toISOString().split('T')[0], concepto: "🔄 SALDO INICIAL - OCIO COMÚN", fondo:"comun", subcat:"Personal", tipo:"ingreso", monto: saldos.comun});
+
+    guardarDatos();
+    actualizarVistaGeneral();
+    alert("✅ Mes cerrado correctamente.\nLista limpia, saldos acumulados guardados.");
+}
+
+// Cambiar entre pestañas
+function cambiarPestana(id) {
+    document.querySelectorAll(".btn-pestana").forEach(btn => btn.classList.remove("activa"));
+    document.querySelectorAll(".contenido-pestana").forEach(p => p.classList.remove("activa"));
+    event.target.classList.add("activa");
+    document.getElementById("pestana-" + id).classList.add("activa");
+}
+
+// Concepto obligatorio solo en gasto
+function cambiarRequerimientoConcepto() {
+    const tipo = document.getElementById("tipo").value;
+    document.getElementById("concepto").required = (tipo === "gasto");
+}
+
+function iniciarSesion() {
+    const clave = document.getElementById("claveAcceso").value.trim();
+    if (!claves.hasOwnProperty(clave)) {
+        alert("Clave incorrecta");
+        return;
+    }
+
+    const perfil = claves[clave];
+    document.getElementById("pantallaLogin").style.display = "none";
+    document.getElementById("pantallaPrincipal").style.display = "block";
+
+    // Mostrar solo las pestañas correspondientes
+    document.getElementById("btnOcioJose").style.display = "none";
+    document.getElementById("btnOcioCaro").style.display = "none";
+
+    if (perfil === "jose") {
+        document.getElementById("btnOcioJose").style.display = "inline-block";
+    } else if (perfil === "caro") {
+        document.getElementById("btnOcioCaro").style.display = "inline-block";
+    }
+
+    cambiarPestana("resumen");
+    actualizarTodo();
+}
+
+function cerrarSesion() {
+    document.getElementById("pantallaPrincipal").style.display = "none";
+    document.getElementById("pantallaLogin").style.display = "block";
+    document.getElementById("claveAcceso").value = "";
+    cambiarPestana("resumen");
+}
+
+function actualizarSubcategorias() {
+    const fondo = document.getElementById("fondo").value;
+    const select = document.getElementById("subcategoria");
+    select.innerHTML = "";
+    if (fondo && subcategorias[fondo]) subcategorias[fondo].forEach(c => select.innerHTML += `<option value="${c}">${c}</option>`);
+    else select.innerHTML = `<option value="">Elige primero el fondo</option>`;
+}
+
+function actualizarSubcategoriasEditar() {
+    const fondo = document.getElementById("fondoEditar").value;
+    const select = document.getElementById("subcategoriaEditar");
+    select.innerHTML = "";
+    if (fondo && subcategorias[fondo]) subcategorias[fondo].forEach(c => select.innerHTML += `<option value="${c}">${c}</option>`);
+}
+
+function agregarMovimiento() {
+    const tipo = document.getElementById("tipo").value;
+    const concepto = document.getElementById("concepto").value.trim();
+    if (tipo === "gasto" && !concepto) return alert("En gastos debes escribir el concepto");
+    const mov = {
+        fecha: document.getElementById("fecha").value,
+        concepto: concepto || "-",
+        fondo: document.getElementById("fondo").value,
+        subcat: document.getElementById("subcategoria").value,
+        tipo: tipo,
+        monto: parseFloat(document.getElementById("monto").value)
+    };
+    if (!mov.fecha || !mov.fondo || !mov.subcat || !mov.monto) return alert("Completa todos los campos");
+    movimientos.push(mov);
+    guardarDatos(); actualizarVistaGeneral(); limpiarFormulario();
+}
+
+function editarMovimiento(i) {
+    const m = movimientos[i];
+    document.getElementById("indiceEditar").value = i;
+    document.getElementById("fechaEditar").value = m.fecha;
+    document.getElementById("conceptoEditar").value = m.concepto === "-" ? "" : m.concepto;
+    document.getElementById("fondoEditar").value = m.fondo;
+    actualizarSubcategoriasEditar();
+    setTimeout(() => document.getElementById("subcategoriaEditar").value = m.subcat, 10);
+    document.getElementById("tipoEditar").value = m.tipo;
+    document.getElementById("montoEditar").value = m.monto;
+    document.getElementById("formEditar").style.display = "block";
+}
+
+function guardarEdicion() {
+    const i = parseInt(document.getElementById("indiceEditar").value);
+    const tipo = document.getElementById("tipoEditar").value;
+    const concepto = document.getElementById("conceptoEditar").value.trim();
+    if (tipo === "gasto" && !concepto) return alert("Concepto obligatorio en gasto");
+    movimientos[i] = {
+        fecha: document.getElementById("fechaEditar").value,
+        concepto: concepto || "-",
+        fondo: document.getElementById("fondoEditar").value,
+        subcat: document.getElementById("subcategoriaEditar").value,
+        tipo: tipo,
+        monto: parseFloat(document.getElementById("montoEditar").value)
+    };
+    guardarDatos(); actualizarVistaGeneral(); cerrarEdicion();
+}
+
+function eliminarMovimiento(i) {
+    if (confirm("¿Borrar este movimiento?")) { movimientos.splice(i,1); guardarDatos(); actualizarVistaGeneral(); }
+}
+
+function cerrarEdicion() { document.getElementById("formEditar").style.display = "none"; }
+
+function actualizarVistaGeneral() {
+    let saldos = { casa:0, ahorro:0, boda:0, dylan:0, comun:0 };
+    let saldosSub = {};
+    subcategorias.comun.forEach(c => saldosSub[c] = 0);
+    const cuerpo = document.getElementById("listaMovimientos");
+    cuerpo.innerHTML = "";
+    movimientos.forEach((m,i) => {
+        const val = m.tipo === "ingreso" ? m.monto : -m.monto;
+        saldos[m.fondo] += val;
+        if (m.fondo === "comun") saldosSub[m.subcat] += val;
+        cuerpo.innerHTML += `
+            <tr>
+                <td>${m.fecha}</td>
+                <td>${m.concepto}</td>
+                <td>${getNombre(m.fondo)}</td>
+                <td>${m.subcat}</td>
+                <td class="${m.tipo}">${m.tipo==="ingreso"?"+":"-"} ${m.monto.toFixed(2)} Bs</td>
+                <td><button class="btn-editar" onclick="editarMovimiento(${i})">✏️</button>
+                <button class="btn-eliminar" onclick="eliminarMovimiento(${i})">🗑️</button></td>
+            </tr>`;
+    });
+    document.getElementById("saldoCasa").textContent = saldos.casa.toFixed(2) + " Bs";
+    document.getElementById("saldoAhorro").textContent = saldos.ahorro.toFixed(2) + " Bs";
+    document.getElementById("saldoBoda").textContent = saldos.boda.toFixed(2) + " Bs";
+    document.getElementById("saldoDylan").textContent = saldos.dylan.toFixed(2) + " Bs";
+    document.getElementById("saldoComun").textContent = saldos.comun.toFixed(2) + " Bs";
+    const contSub = document.getElementById("saldoSubcategorias");
+    contSub.innerHTML = "";
+    for (const c in saldosSub) contSub.innerHTML += `<div class="tarjeta"><h3>${c}</h3><div class="valor">${saldosSub[c].toFixed(2)} Bs</div></div>`;
+}
+
+// Ocio José
+function agregarJose() {
+    const tipo = document.getElementById("tipoJose").value;
+    const concepto = document.getElementById("conceptoJose").value.trim();
+    if (tipo === "gasto" && !concepto) return alert("Concepto obligatorio en gasto");
+    const monto = parseFloat(document.getElementById("montoJose").value);
+    const val = tipo === "ingreso" ? monto : -monto;
+    saldoJose += val;
+    movJose.push({ fecha: document.getElementById("fechaJose").value, concepto: concepto || "-", tipo, monto });
+    guardarDatos(); actualizarVistaJose(); limpiarJose();
+}
+
+function actualizarVistaJose() {
+    document.getElementById("saldoJose").textContent = saldoJose.toFixed(2) + " Bs";
+    const cuerpo = document.getElementById("listaJose"); cuerpo.innerHTML = "";
+    movJose.forEach((m,i) => {
+        cuerpo.innerHTML += `
+            <tr>
+                <td>${m.fecha}</td>
+                <td>${m.concepto}</td>
+                <td class="${m.tipo}">${m.tipo==="ingreso"?"+":"-"} ${m.monto.toFixed(2)} Bs</td>
+                <td><button class="btn-editar" onclick="editarJose(${i})">✏️</button>
+                <button class="btn-eliminar" onclick="eliminarJose(${i})">🗑️</button></td>
+            </tr>`;
+    });
+}
+
+function editarJose(i) {
+    const m = movJose[i];
+    const nuevoMonto = prompt("Nuevo monto:", m.monto);
+    const nuevoTipo = prompt("Tipo: ingreso / gasto", m.tipo);
+    const nuevoConcepto = prompt("Concepto:", m.concepto === "-" ? "" : m.concepto);
+    if (nuevoMonto && nuevoTipo) {
+        const viejo = m.tipo === "ingreso" ? m.monto : -m.monto;
+        const nuevo = nuevoTipo === "ingreso" ? parseFloat(nuevoMonto) : -parseFloat(nuevoMonto);
+        saldoJose = saldoJose - viejo + nuevo;
+        movJose[i] = { ...m, monto: parseFloat(nuevoMonto), tipo: nuevoTipo, concepto: nuevoConcepto || "-" };
+        guardarDatos(); actualizarVistaJose();
+    }
+}
+
+function eliminarJose(i) {
+    if (confirm("¿Borrar?")) {
+        const val = movJose[i].tipo === "ingreso" ? movJose[i].monto : -movJose[i].monto;
+        saldoJose -= val; movJose.splice(i,1); guardarDatos(); actualizarVistaJose();
+    }
+}
+
+// Ocio Caro
+function agregarCaro() {
+    const tipo = document.getElementById("tipoCaro").value;
+    const concepto = document.getElementById("conceptoCaro").value.trim();
+    if (tipo === "gasto" && !concepto) return alert("Concepto obligatorio en gasto");
+    const monto = parseFloat(document.getElementById("montoCaro").value);
+    const val = tipo === "ingreso" ? monto : -monto;
+    saldoCaro += val;
+    movCaro.push({ fecha: document.getElementById("fechaCaro").value, concepto: concepto || "-", tipo, monto });
+    guardarDatos(); actualizarVistaCaro(); limpiarCaro();
+}
+
+function actualizarVistaCaro() {
+    document.getElementById("saldoCaro").textContent = saldoCaro.toFixed(2) + " Bs";
+    const cuerpo = document.getElementById("listaCaro"); cuerpo.innerHTML = "";
+    movCaro.forEach((m,i) => {
+        cuerpo.innerHTML += `
+            <tr>
+                <td>${m.fecha}</td>
+                <td>${m.concepto}</td>
+                <td class="${m.tipo}">${m.tipo==="ingreso"?"+":"-"} ${m.monto.toFixed(2)} Bs</td>
+                <td><button class="btn-editar" onclick="editarCaro(${i})">✏️</button>
+                <button class="btn-eliminar" onclick="eliminarCaro(${i})">🗑️</button></td>
+            </tr>`;
+    });
+}
+
+function editarCaro(i) {
+    const m = movCaro[i];
+    const nuevoMonto = prompt("Nuevo monto:", m.monto);
+    const nuevoTipo = prompt("Tipo: ingreso / gasto", m.tipo);
+    const nuevoConcepto = prompt("Concepto:", m.concepto === "-" ? "" : m.concepto);
+    if (nuevoMonto && nuevoTipo) {
+        const viejo = m.tipo === "ingreso" ? m.monto : -m.monto;
+        const nuevo = nuevoTipo === "ingreso" ? parseFloat(nuevoMonto) : -parseFloat(nuevoMonto);
+        saldoCaro = saldoCaro - viejo + nuevo;
+        movCaro[i] = { ...m, monto: parseFloat(nuevoMonto), tipo: nuevoTipo, concepto: nuevoConcepto || "-" };
+        guardarDatos(); actualizarVistaCaro();
+    }
+}
+
+function eliminarCaro(i) {
+    if (confirm("¿Borrar?")) {
+        const val = movCaro[i].tipo === "ingreso" ? movCaro[i].monto : -movCaro[i].monto;
+        saldoCaro -= val; movCaro.splice(i,1); guardarDatos(); actualizarVistaCaro();
+    }
+}
+
+// Funciones auxiliares
+function guardarDatos() {
+    localStorage.setItem("movimientos", JSON.stringify(movimientos));
+    localStorage.setItem("saldoJose", saldoJose);
+    localStorage.setItem("movJose", JSON.stringify(movJose));
+    localStorage.setItem("saldoCaro", saldoCaro);
+    localStorage.setItem("movCaro", JSON.stringify(movCaro));
+}
+
+function getNombre(cod) {
+    const n = { casa:"🏠 Casa", ahorro:"🤝 Ahorro en Conjunto", boda:"💍 Ahorro Boda", dylan:"👶 Ahorro Dylan", comun:"🎯 Ocio Común" };
+    return n[cod] || cod;
+}
+
+function limpiarFormulario() { document.getElementById("fecha").value = ""; document.getElementById("concepto").value = ""; document.getElementById("fondo").value = ""; document.getElementById("monto").value = ""; }
+function limpiarJose() { document.getElementById("fechaJose").value = ""; document.getElementById("conceptoJose").value = ""; document.getElementById("montoJose").value = ""; }
+function limpiarCaro() { document.getElementById("fechaCaro").value = ""; document.getElementById("conceptoCaro").value = ""; document.getElementById("montoCaro").value = ""; }
+function actualizarTodo() { actualizarVistaGeneral(); actualizarVistaJose(); actualizarVistaCaro(); }
+
+cambiarRequerimientoConcepto();
+</script>
+
+</body>
+</html>
